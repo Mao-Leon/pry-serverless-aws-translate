@@ -1,17 +1,24 @@
 'use strict';
 
 const  { TranslateClient, TranslateTextCommand } = require( "@aws-sdk/client-translate");
+const { DynamoDBClient } = require( "@aws-sdk/client-dynamodb");
+const { PutCommand, ScanCommand, DynamoDBDocumentClient } = require( "@aws-sdk/lib-dynamodb");
 
+const uuidv1 = require('uuid').v1;
+
+
+//Cliente traductor
 const translateClient = new TranslateClient({region: process.env.REGION});
+//Cliente DynamoDB
+const client = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(client);
+
 
 module.exports.transformarApi = async (event) => {
 const translated={}
 
 const evtBodyObj = JSON.parse(event.body);
 const urlInput = (evtBodyObj.url); 
-
-console.log("evtBodyObj ---->" + evtBodyObj);
-console.log("urlInput ----> " + urlInput);
 
   if (!!urlInput) {
     const response = await fetch(urlInput);
@@ -33,15 +40,25 @@ console.log("urlInput ----> " + urlInput);
         translated[normalizedKey] = data[key];
       }
 
+      translated.userId = uuidv1();
+
+      const params = {
+        TableName: process.env.USER_DATA_TRSLT_TABLE,
+        Item: translated
+      };
+    
+      const command = new PutCommand(params)
+    
+      const response = await docClient.send(command);
+      console.log(response);
+
       return {
         statusCode: 200,
-        body: JSON.stringify(
-          {
+        body: JSON.stringify({
             data: data,
             keysTranslated: translated,
-            input: event
-          },
-        ),
+            response: response
+          }),
       };
 
     } else {
@@ -68,9 +85,10 @@ module.exports.consultarUsuarios = async () => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        response
-      })
+      body: '<pre>'+ JSON.stringify({ items: response.Items, ScannedCount: response.ScannedCount },null,'\t')+'</pre>',
+      headers: {
+        'Content-Type': 'text/html'
+      }
     };
 
   } catch (err) {

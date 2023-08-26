@@ -11,7 +11,7 @@ provider:
   stage: dev
   environment:
     REGION: ${self:provider.region}
-    USER_DATA_TRSLT_TABLE: TranslatedUsers
+    USER_DATA_TRSLT_TABLE: TranslatedUserKeysTable
   iam:
     role:
       statements:
@@ -21,6 +21,7 @@ provider:
             - "dynamodb:PutItem"
             - "dynamodb:UpdateItem"
             - "dynamodb:DeleteItem"
+            - "dynamodb:Scan"
           Resource: "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.USER_DATA_TRSLT_TABLE}"
         - Effect: "Allow"
           Action:
