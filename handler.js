@@ -7,40 +7,52 @@ const translateClient = new TranslateClient({region: process.env.REGION});
 module.exports.transformarApi = async (event) => {
 const translated={}
 
-const response = await fetch('https://swapi.dev/api/people/1');
-const data = await response.json();
+const evtBodyObj = JSON.parse(event.body);
+const urlInput = (evtBodyObj.url); 
 
-  console.log(JSON.stringify(data))
+console.log("evtBodyObj ---->" + evtBodyObj);
+console.log("urlInput ----> " + urlInput);
 
-  if (response.status === 200) {
+  if (!!urlInput) {
+    const response = await fetch(urlInput);
+    const data = await response.json();
 
-    for(let key in data) {
-      const command = new TranslateTextCommand({
-        SourceLanguageCode: 'en',
-        TargetLanguageCode: 'es',
-        Text: key
-      });
-  
-      const translatedKey = await translateClient.send(command);
+    console.log(JSON.stringify(data))
 
-      const normalizedKey = translatedKey.TranslatedText.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(' ','_');
+    if (response.status === 200) {
 
-      translated[normalizedKey] = data[key];
+      for (let key in data) {
+        const command = new TranslateTextCommand({
+          SourceLanguageCode: 'en',
+          TargetLanguageCode: 'es',
+          Text: key
+        });
+
+        const translatedKey = await translateClient.send(command);
+        const normalizedKey = translatedKey.TranslatedText.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(' ', '_');
+        translated[normalizedKey] = data[key];
+      }
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify(
+          {
+            data: data,
+            keysTranslated: translated,
+            input: event
+          },
+        ),
+      };
+
+    } else {
+      console.log('error');
     }
 
+  }else{
     return {
-      statusCode: 200,
-      body: JSON.stringify(
-        {
-          data: data,
-          keysTranslated: translated,
-          input: event
-        },
-      ),
+      statusCode: 500,
+      body: 'Error: Invalid URL parameter on body request, must be like this: { "url":"https://swapi.dev/api/people/1/" }'
     };
-
-  } else {
-    console.log('error');
   }
 
 };
