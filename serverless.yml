@@ -1,0 +1,58 @@
+service: prytranslatejson
+
+
+frameworkVersion: "3"
+
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: dev
+  environment:
+    REGION: ${self:provider.region}
+    USER_DATA_TRSLT_TABLE: TranslatedUsers
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "dynamodb:GetItem"
+            - "dynamodb:PutItem"
+            - "dynamodb:UpdateItem"
+            - "dynamodb:DeleteItem"
+          Resource: "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.USER_DATA_TRSLT_TABLE}"
+        - Effect: "Allow"
+          Action:
+            - "translate:TranslateText"
+          Resource: "*"
+functions:
+  transformarApi:
+    handler: handler.transformarApi
+    events:
+      - http:
+          method: POST
+          path: users
+  consultarUsuarios:
+    handler: handler.consultarUsuarios
+    events:
+      - http:
+          method: GET
+          path: users
+
+resources:
+  Resources:
+    UserDataTrsltTableResource:
+      Type: "AWS::DynamoDB::Table"
+      Properties:
+        TableName: ${self:provider.environment.USER_DATA_TRSLT_TABLE}
+        AttributeDefinitions:
+        - AttributeName: "userId"
+          AttributeType: "S"
+        KeySchema:
+        - AttributeName: "userId"
+          KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
